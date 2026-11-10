@@ -41,7 +41,3 @@ Press `SPACE` to replay the bloom, `S` to save a screenshot, `ESC` to quit.
 - [Python](https://www.python.org) for the script
 - [NumPy](https://numpy.org) for the math behind every frame
 - [pygame-ce](https://pyga.me) for the window and text drawing
-
-## Credits
-
-Inspired by the ASCII black hole by [@jin_22ee](https://github.com/JIN2-ASCII). Everything here is a small tribute to that idea.
