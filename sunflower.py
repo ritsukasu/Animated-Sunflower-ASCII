@@ -17,7 +17,7 @@ import pygame
 
 # ----------------------------------------------------------------- settings
 W, H = 1000, 760            # window size, in pixels
-FONT_SIZE = 10
+FONT_SIZE = 8
 LOOP = 26.0                 # how long one loop lasts, in seconds
 FLASH = 7.0                 # when the light rolls over the seed head
 
@@ -94,7 +94,9 @@ class Scene:
 
         # fade in at the start, fade out at the end so the loop is smooth
         fade = float(smooth(t / 1.0) * (1 - smooth((t - (LOOP - 1.5)) / 1.5)))
-        return lum * fade, col, ov
+        if fade < 0.02:
+            ov[:] = 0
+        return lum * fade, col * fade, ov
 
     # --------------------------------------------------------------- flower
     def draw_flower(self, f, idx, t, lum, col, ov):
@@ -116,10 +118,12 @@ class Scene:
         L = np.zeros((rows, cols))
         C = np.zeros((rows, cols, 3))
         occ = np.zeros((rows, cols), bool)
+        OV = np.zeros((rows, cols), dtype=np.int32)       # characters this flower forces
 
-        def put(m, l, c):
+        def put(m, l, c, chars=None):
             L[m] = l[m]
             C[m] = c[m]
+            OV[m] = 0 if chars is None else chars[m]
             occ[m] = True
 
         def full(c):
@@ -191,24 +195,29 @@ class Scene:
             c = np.abs(rel) / (half * w + 1e-6)           # 0 down the middle, 1 at the edge
             m = (s > -0.25) & (s < 1) & (c < 1)
 
-            outline = smooth((c - 0.66) / 0.22)
+            outline = smooth((c - 0.80) / 0.16)
             vein = np.exp(-(c / 0.07) ** 2)
             col_p = np.where((sc < 0.5)[..., None],
                              mix(c_base, c_mid, sc * 2),
                              mix(c_mid, c_tip, (sc - 0.5) * 2))
-            col_p = col_p * (1 - 0.7 * outline[..., None]) + np.array((150, 60, 8)) * 0.7 * outline[..., None]
+            col_p = col_p * (1 - 0.92 * outline[..., None]) + np.array((190, 85, 8)) * 0.92 * outline[..., None]   # deep orange pencil line
 
-            l = 0.68 + 0.20 * sc
-            l = l * (1 - 0.82 * outline) * (1 - 0.35 * vein)
+            l = 0.72 + 0.16 * sc
+            l = l * (1 - 0.40 * outline) * (1 - 0.30 * vein)
             l = l + 0.03 * np.sin(c * 22 + s * 3) * (1 - outline)       # fine streaks
             l = l - 0.10 * (rel / (half * w + 1e-6))                    # light from the left
             l = l * (0.40 + 0.60 * smooth(sc * 2.0))                    # shadow near the head
             l = np.minimum(l * shade, 0.84)                             # no white petals
-            put(m, l, col_p)
+            # draw each petal with line characters that follow its direction, outlined with #
+            phi = np.mod(TH, np.pi)
+            lines = np.array([ord("="), ord("\\"), ord("|"), ord("/")])[
+                np.rint(phi / (np.pi / 4)).astype(int) % 4]
+            chars = np.where(outline > 0.6, ord("#"), lines)
+            put(m, l, col_p, chars)
 
-        petals(0.00, 1.12, (190, 85, 8), (232, 135, 14), (248, 185, 45), 0.80)
-        petals(np.pi / npet, 0.88, (215, 110, 10), (248, 170, 22), (255, 222, 85), 1.00)
-        petals(0.00, 0.62, (225, 125, 12), (252, 185, 30), (255, 230, 110), 1.15)
+        petals(0.00, 1.12, (200, 95, 8), (240, 150, 14), (252, 190, 25), 0.90)
+        petals(np.pi / npet, 0.88, (225, 125, 10), (252, 182, 15), (255, 215, 30), 1.00)
+        petals(0.00, 0.62, (240, 150, 12), (255, 200, 20), (255, 225, 55), 1.10)
 
         # seed head, laid out on the golden-angle spiral
         ns = int(max(40, NS * (size / 0.9) ** 2))         # smaller flower, fewer seeds
@@ -232,14 +241,14 @@ class Scene:
             h = np.sqrt(1 - q * q)                         # each seed is a tiny dome
             lit = (ddx * -0.6 + ddy * -0.75) / (0.55 * sp)  # light comes from the upper left
             l = 0.30 + 0.42 * h + 0.22 * lit
-            l = l * (0.55 + 0.45 * smooth(np.hypot(pu, pv) / R0 / 0.8))   # darker toward the middle
+            l = l * (0.75 + 0.25 * smooth(np.hypot(pu, pv) / R0 / 0.8))   # darker toward the middle
 
             rf = np.hypot(pu, pv) / R0
             # dark brown in the middle, a golden ring of florets at the edge
             stops = [0, .45, .75, .9, 1]
-            cr = np.interp(rf, stops, [44, 66, 130, 215, 150])
-            cg = np.interp(rf, stops, [26, 38, 84, 150, 95])
-            cb = np.interp(rf, stops, [8, 12, 20, 38, 24])
+            cr = np.interp(rf, stops, [95, 110, 160, 225, 170])
+            cg = np.interp(rf, stops, [58, 68, 105, 160, 110])
+            cb = np.interp(rf, stops, [20, 24, 28, 42, 30])
             jit = 0.85 + 0.30 * ((np.sin(j * 12.9898) * 43758.5453) % 1.0)
             l = l * (1 - 0.35 * smooth((rf - 0.94) / 0.08))   # a shadowy rim under the petals
 
@@ -253,13 +262,14 @@ class Scene:
             L[ys, xs] = np.where(seeded, l, 0.32)          # bare green base where no seed has grown yet
             C[ys, xs] = np.stack([np.where(seeded, cr, 60), np.where(seeded, cg, 105),
                                   np.where(seeded, cb, 36)], axis=1)
+            OV[ys, xs] = 0
             occ[ys, xs] = True
 
         # copy this flower onto the big canvas
         sl = (slice(y0, y1), slice(x0, x1))
         lum[sl][occ] = L[occ] * dim
         col[sl][occ] = C[occ]
-        ov[sl][occ] = 0
+        ov[sl][occ] = OV[occ]
 
         # pollen drifting up after the flash
         K = 60
