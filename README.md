@@ -14,7 +14,7 @@
   <img alt="An ASCII sunflower blooming in a desktop window" src="preview.gif" width="100%">
 </p>
 
-A small art project. A Python script opens a window and draws one sunflower out of plain text characters. It sprouts, the petals unfurl in layers (each one outlined and veined, like a colored pencil drawing), a ring of light sweeps across the seed head, and pollen drifts up. It runs live, it's not a video.
+A small art project. A Python script opens a window and draws one sunflower out of plain text characters. It sprouts, the petals unfurl in layers, a ring of light sweeps across the seed head, and pollen drifts up. It runs live, it's not a video.
 
 ## Quick start
 
